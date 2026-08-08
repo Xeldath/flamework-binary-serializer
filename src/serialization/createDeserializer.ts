@@ -59,6 +59,14 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 				buffer.readf32(buf, currentOffset + 4),
 				buffer.readf32(buf, currentOffset + 8),
 			);
+		} else if (kind === "buffer") {
+			const length = buffer.readu32(buf, currentOffset);
+			offset += 4 + length;
+
+			const newBuffer = buffer.create(length);
+			buffer.copy(newBuffer, 0, buf, currentOffset + 4, length);
+
+			return newBuffer;
 		} else if (kind === "object") {
 			const elements = meta[1];
 			const obj = table.clone(meta[2]) as Map<unknown, unknown>;

@@ -67,6 +67,11 @@ export function createSerializer<T>(info: ProcessedSerializerData) {
 			buffer.writef32(buf, currentOffset, (value as Vector3).X);
 			buffer.writef32(buf, currentOffset + 4, (value as Vector3).Y);
 			buffer.writef32(buf, currentOffset + 8, (value as Vector3).Z);
+		} else if (kind === "buffer") {
+			const bufferSize = buffer.len(value as buffer);
+			allocate(4 + bufferSize);
+			buffer.writeu32(buf, currentOffset, bufferSize);
+			buffer.copy(buf, currentOffset + 4, value as buffer);
 		} else if (kind === "object") {
 			const elements = meta[1];
 			for (const i of $range(1, elements.size(), 2)) {

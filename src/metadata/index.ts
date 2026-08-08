@@ -20,7 +20,7 @@ type GetEnumType<T> = [T] extends [EnumItem] ? ExtractKeys<Enums, T["EnumType"]>
 type ArrayMetadata<T extends unknown[]> = [T] extends [{ length: number }]
 	? [
 			"tuple",
-			SplitRest<T> extends infer A ? { [k in keyof A]: SerializerMetadata<A[k]> } : never,
+			SplitRest<T> extends infer A ? { [k in keyof A]-?: SerializerMetadata<A[k]> } : never,
 			HasRest<T> extends true ? SerializerMetadata<RestType<T>> : undefined,
 	  ]
 	: ["array", SerializerMetadata<T[number]>];
@@ -74,6 +74,8 @@ export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
 	? ["string"]
 	: [T] extends [Vector3]
 	? ["vector"]
+	: [T] extends [buffer]
+	? ["buffer"]
 	: [T] extends [EnumItem]
 	? ["enum", GetEnumType<T>]
 	: [T] extends [DataTypes[keyof DataTypes]]
@@ -134,6 +136,7 @@ export type SerializerData =
 	| ["boolean"]
 	| ["string"]
 	| ["vector"]
+	| ["buffer"]
 	| ["object", Array<string | SerializerData>, object]
 	| ["object_raw", [string, SerializerData][]]
 	| ["packed", SerializerData]
