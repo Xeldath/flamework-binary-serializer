@@ -9,6 +9,7 @@ import {
 } from "./unions";
 import { HasRest, RestType, SplitRest } from "./tuples";
 import { Modding } from "@flamework/core";
+import { CustomConfig } from "./custom";
 
 type IsNumber<T, K extends string> = `_${K}` extends keyof T ? true : false;
 
@@ -17,13 +18,13 @@ type GetEnumType<T> = [T] extends [EnumItem] ? ExtractKeys<Enums, T["EnumType"]>
 /**
  * Generates the metadata for arrays and tuples.
  */
-type ArrayMetadata<T extends unknown[]> = [T] extends [{ length: number }]
+type ArrayMetadata<T extends unknown[], C extends CustomConfig> = [T] extends [{ length: number }]
 	? [
 			"tuple",
-			SplitRest<T> extends infer A ? { [k in keyof A]-?: SerializerMetadata<A[k]> } : never,
-			HasRest<T> extends true ? SerializerMetadata<RestType<T>> : undefined,
+			SplitRest<T> extends infer A ? { [k in keyof A]-?: SerializerMetadata<A[k], C> } : never,
+			HasRest<T> extends true ? SerializerMetadata<RestType<T>, C> : undefined,
 	  ]
-	: ["array", SerializerMetadata<T[number]>];
+	: ["array", SerializerMetadata<T[number], C>];
 
 /**
  * A shortcut for defining Roblox datatypes (which map directly to a simple type.)
@@ -37,19 +38,35 @@ interface DataTypes {
 	color3: Color3;
 }
 
+type GetCustomType<T, C extends CustomConfig> = C["customTypes"] extends defined
+	? {
+			[k in keyof C["customTypes"]]: T extends C["customTypes"][k]["matchType"]
+				? C["customTypes"][k] & { id: k }
+				: never;
+	  }[keyof C["customTypes"]]
+	: never;
+
+type HasCustomType<T, C extends CustomConfig> = GetCustomType<T, C> extends never ? false : true;
+
+type GetCustomTypeMetadata<T, C extends CustomConfig> = GetCustomType<T, C>["metadataKey"] extends defined
+	? T[GetCustomType<T, C>["metadataKey"] & keyof T]
+	: undefined;
+
 /**
  * This is the metadata expected by the `createSerializer` function.
  *
  * This can be used in your own user macros to generate serializers for arbitrary types, such as for a networking library.
  */
-export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
+export type SerializerMetadata<T, C extends CustomConfig = {}> = IsLiteralUnion<T> extends true
 	? ["literal", NonNullable<T>[], true extends IsUnion<T> ? (undefined extends T ? 1 : 0) : -1]
 	: unknown extends T
 	? ["optional", ["blob"]]
 	: ["_packed", T] extends [keyof T, { _packed?: [infer V] }]
-	? ["packed", SerializerMetadata<V>]
+	? ["packed", SerializerMetadata<V, C>]
 	: undefined extends T
-	? ["optional", SerializerMetadata<NonNullable<T>>]
+	? ["optional", SerializerMetadata<NonNullable<T>, C>]
+	: HasCustomType<T, C> extends true
+	? ["custom", GetCustomType<T, C>["id"], GetCustomTypeMetadata<T, C>]
 	: IsNumber<T, "f64"> extends true
 	? ["f64"]
 	: IsNumber<T, "f32"> extends true
@@ -81,17 +98,17 @@ export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
 	: [T] extends [DataTypes[keyof DataTypes]]
 	? [ExtractKeys<DataTypes, T>]
 	: [T] extends [unknown[]]
-	? ArrayMetadata<T>
+	? ArrayMetadata<T, C>
 	: [T] extends [ReadonlyMap<infer K, infer V>]
-	? ["map", SerializerMetadata<K>, SerializerMetadata<V>]
+	? ["map", SerializerMetadata<K, C>, SerializerMetadata<V, C>]
 	: [T] extends [ReadonlySet<infer V>]
-	? ["set", SerializerMetadata<V>]
+	? ["set", SerializerMetadata<V, C>]
 	: IsDiscriminableUnion<T> extends true
 	? [
 			"union",
 			FindDiscriminator<T>,
 			FindDiscriminator<T> extends infer D
-				? (T extends T ? [T[D & keyof T], SerializerMetadata<Omit<T, D & keyof T>>] : never)[]
+				? (T extends T ? [T[D & keyof T], SerializerMetadata<Omit<T, D & keyof T>, C>] : never)[]
 				: never,
 			// This is the byte size length. This is annoying (and slow) to calculate in TS, so it's done at runtime.
 			-1,
@@ -102,8 +119,8 @@ export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
 			(HasSingularObjectConstituent<T> extends infer U
 				? T extends T
 					? [IsTableObject<T>, U] extends [true, true]
-						? [SerializerMetadata<T>, undefined]
-						: [SerializerMetadata<T>, Modding.Generic<T, "guard">]
+						? [SerializerMetadata<T, C>, undefined]
+						: [SerializerMetadata<T, C>, Modding.Generic<T, "guard">]
 					: never
 				: never)[],
 	  ]
@@ -113,7 +130,7 @@ export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
 	? [
 			"object_raw",
 			{
-				[k in keyof T]-?: [k, SerializerMetadata<T[k]>];
+				[k in keyof T]-?: [k, SerializerMetadata<T[k], C>];
 			}[keyof T][],
 	  ]
 	: ["blob"];
@@ -125,6 +142,7 @@ export type SerializerMetadata<T> = IsLiteralUnion<T> extends true
  * This may not be necessary when we upgrade to TS 5.4 due to improvements in how TypeScript treats conditional types in such cases.
  */
 export type SerializerData =
+	| ["custom", string, unknown]
 	| ["f32"]
 	| ["f64"]
 	| ["u8"]

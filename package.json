@@ -22,7 +22,7 @@
 	"scripts": {
 		"build": "rbxtsc",
 		"watch": "rbxtsc -w",
-		"prepublishOnly": "npm run build"
+		"prepare": "npm run build"
 	},
 	"types": "out/index.d.ts",
 	"peerDependencies": {

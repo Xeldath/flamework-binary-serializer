@@ -2,9 +2,10 @@
 //!optimize 2
 import { AXIS_ALIGNED_ORIENTATIONS } from "../constants";
 import type { SerializerData } from "../metadata";
+import { CustomConfigBasic } from "../metadata/custom";
 import type { ProcessedSerializerData } from "../processSerializerData";
 
-export function createDeserializer<T>(info: ProcessedSerializerData) {
+export function createDeserializer<T>(info: ProcessedSerializerData, config: CustomConfigBasic) {
 	const bits = table.create<boolean>(math.ceil(info.minimumPackedBits / 8) * 8);
 	let bitIndex = 0;
 	let buf!: buffer;
@@ -286,6 +287,13 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 				buffer.readu8(buf, currentOffset + 1),
 				buffer.readu8(buf, currentOffset + 2),
 			);
+		} else if (kind === "custom") {
+			const customType = meta[1];
+			const customMetadata = meta[2];
+			const [value, len] = config.customTypes![customType].deserialize(buf, currentOffset, customMetadata);
+			offset += len;
+
+			return value;
 		} else {
 			error(`unexpected kind: ${kind}`);
 		}

@@ -1,28 +1,8 @@
 import { Modding } from "@flamework/core";
 import type { SerializerMetadata } from "./metadata";
-import { createSerializer } from "./serialization/createSerializer";
-import { createDeserializer } from "./serialization/createDeserializer";
-import { processSerializerData } from "./processSerializerData";
+import { createConfiguredFBS, Serializer } from "./createConfiguredFBS";
 
-/**
- * A binary serializer.
- */
-export interface Serializer<T> {
-	/**
-	 * Serializes the input into a buffer.
-	 *
-	 * Result includes a blobs array which is used for things that cannot be put into the buffer.
-	 * The blobs array can be sent across the network or otherwise stored and passed into the deserialize function.
-	 */
-	serialize: (value: T) => { buffer: buffer; blobs: defined[] };
-
-	/**
-	 * Deserializes the input back into `T`.
-	 *
-	 * The blobs array can be omitted, but if the buffer contains blob references then deserialization will error.
-	 */
-	deserialize: (input: buffer, inputBlobs?: defined[]) => T;
-}
+const DEFAULT_FBS = createConfiguredFBS<{}>({});
 
 /**
  * Creates a binary serializer automatically from a given type.
@@ -37,9 +17,5 @@ export interface Serializer<T> {
  * @metadata macro
  */
 export function createBinarySerializer<T>(meta?: Modding.Many<SerializerMetadata<T>>): Serializer<T> {
-	const processed = processSerializerData(meta as never);
-	return {
-		serialize: createSerializer(processed),
-		deserialize: createDeserializer(processed),
-	};
+	return DEFAULT_FBS.createBinarySerializer(meta as never);
 }
