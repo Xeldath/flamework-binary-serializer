@@ -112,7 +112,12 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 			offset += 4;
 
 			for (const i of $range(1, length)) {
-				map.set(deserialize(keyDeserializer), deserialize(valueDeserializer));
+				const key = deserialize(keyDeserializer);
+				const value = deserialize(valueDeserializer);
+
+				// Roblox sends an Instance that the receiver cannot see, such as a player who has left, as nil, so such a key
+				// arrives as undefined. Drop that entry instead of failing the whole value.
+				if (key !== undefined) map.set(key, value);
 			}
 
 			return map;
@@ -123,7 +128,8 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 			offset += 4;
 
 			for (const i of $range(1, length)) {
-				set.add(deserialize(valueDeserializer));
+				const value = deserialize(valueDeserializer);
+				if (value !== undefined) set.add(value);
 			}
 
 			return set;
