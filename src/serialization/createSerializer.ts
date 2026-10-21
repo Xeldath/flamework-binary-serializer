@@ -211,7 +211,9 @@ export function createSerializer<T>(info: ProcessedSerializerData) {
 				bits.push(value === literals[0]);
 			}
 		} else if (kind === "blob") {
-			// Value will always be defined because if it isn't, it will be wrapped in `optional`
+			// An optional blob is wrapped in `optional`, so `undefined` here is a required value that is missing. Pushing it
+			// would add nothing, and every later blob would be read into the field before it.
+			if (value === undefined) error("a required Instance or unknown value is undefined");
 			blobs.push(value!);
 		} else if (kind === "packed") {
 			const innerType = meta[1];
