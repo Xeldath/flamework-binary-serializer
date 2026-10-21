@@ -71,7 +71,9 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 		} else if (kind === "array") {
 			const deserializer = meta[1];
 			const length = buffer.readu32(buf, currentOffset);
-			const array = new Array<defined>(length);
+			// The length comes from the buffer, so preallocating all of it would let a 4-byte buffer allocate a gigabyte.
+			// The preallocation is only a capacity hint (`push` grows the array), so capping it changes no result.
+			const array = new Array<defined>(math.min(length, buffer.len(buf)));
 			offset += 4;
 
 			for (const i of $range(1, length)) {
@@ -89,7 +91,7 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 				restLength = buffer.readu32(buf, currentOffset);
 			}
 
-			const tuple = new Array<defined>(elements.size() + restLength);
+			const tuple = new Array<defined>(elements.size() + math.min(restLength, buffer.len(buf)));
 
 			for (const element of elements) {
 				tuple.push(deserialize(element) as defined);
