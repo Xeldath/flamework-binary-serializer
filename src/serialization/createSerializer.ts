@@ -197,6 +197,13 @@ export function createSerializer<T>(info: ProcessedSerializerData) {
 			// This is fine, though, as -1 will serialize as the max integer which will be undefined on unions that do not exceed the size limit.
 			const literals = meta[1];
 			const byteSize = meta[2];
+
+			// Any other value would be written as an index past the union and read back as undefined, or as the second
+			// member of a packed two-member union, without an error.
+			if (!literals.includes(value as defined) && !(value === undefined && meta[3] === true)) {
+				error(`${value} is not one of the literals ${literals.map((literal) => tostring(literal)).join(", ")}`);
+			}
+
 			if (byteSize === 1) {
 				const index = literals.indexOf(value as defined);
 				allocate(1);

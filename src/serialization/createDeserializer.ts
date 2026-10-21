@@ -169,12 +169,14 @@ export function createDeserializer<T>(info: ProcessedSerializerData) {
 		} else if (kind === "literal") {
 			const literals = meta[1];
 			const byteSize = meta[2];
-			if (byteSize === 1) {
-				offset += 1;
-				return literals[buffer.readu8(buf, currentOffset)];
-			} else if (byteSize === 2) {
-				offset += 2;
-				return literals[buffer.readu16(buf, currentOffset)];
+			if (byteSize === 1 || byteSize === 2) {
+				offset += byteSize;
+				const index = byteSize === 1 ? buffer.readu8(buf, currentOffset) : buffer.readu16(buf, currentOffset);
+				const literal = literals[index];
+
+				// Only a union that includes `undefined` encodes a missing value; any other index past it is malformed.
+				if (literal === undefined && meta[3] !== true) error(`literal index ${index} is out of range`);
+				return literal;
 			} else if (byteSize === -1) {
 				bitIndex++;
 				return bits[bitIndex - 1] ? literals[0] : literals[1];
